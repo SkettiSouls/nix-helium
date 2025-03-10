@@ -1,6 +1,11 @@
-{ inputs, pkgs, lib, ... }:
-
+{ inputs, config, pkgs, lib, ... }:
+let
+  inherit (lib) mkDefault;
+in
 {
+  imports = [ ./users ];
+  wireguard.enable = true;
+
   helion = {
     keys.ssh-ed25519 = {
       skettisouls = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILU3q+/0jJLkAtvCk3hJ+QAXCvza7SZ9a0V6FZq6IJne";
@@ -25,7 +30,6 @@
     networkmanager.enable = true;
     firewall.allowedTCPPorts = [ 22 ];
   };
-
 
   programs.git = {
     enable = true;
@@ -61,11 +65,23 @@
   time.timeZone = "America/Chicago";
   system.stateVersion = "24.11";
 
-  virtualisation.vmVariant.virtualisation.sharedDirectories = {
-    secrets = {
-      source = "/etc/ssh";
-      target = "/etc/ssh";
-      securityModel = "passthrough";
+  virtualisation.vmVariant = {
+    users.mutableUsers = true;
+    users.users = lib.mapAttrs
+      (user: enabled:
+        (lib.traceVal (lib.optionalAttrs enabled {
+          isNormalUser = true;
+          initialPassword = "nixos";
+        }))
+      )
+      config.helion.remote.access;
+
+    virtualisation.sharedDirectories = {
+      secrets = {
+        source = "/etc/ssh";
+        target = "/etc/ssh";
+        securityModel = "passthrough";
+      };
     };
   };
 }
